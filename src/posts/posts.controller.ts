@@ -2,6 +2,7 @@ import * as express from 'express';
 import Post from './post.interface';
 import PostModel from './posts.model';
 import Controller from '../interfaces/controller.interface';
+import PostNotFoundException from '../exceptions/PostNotFoundException';
 
 class PostsController implements Controller {
   public path = '/posts';
@@ -28,10 +29,14 @@ class PostsController implements Controller {
     });
   };
 
-  findById = (req: express.Request, res: express.Response) => {
+  findById = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const { id } = req.params;
     this.PostModel.findById(id).then((post) => {
-      res.send(post);
+      if (!post) {
+        next(new PostNotFoundException(id));
+      } else {
+        res.send(post);
+      }
     });
   };
 
@@ -43,21 +48,26 @@ class PostsController implements Controller {
     });
   };
 
-  update = (req: express.Request, res: express.Response) => {
+  update = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const { id } = req.params;
     const postData: Post = req.body;
     this.PostModel.findByIdAndUpdate(id, postData, { new: true }).then((post) => {
-      res.send(post);
+      if (!post) {
+        next(new PostNotFoundException(id));
+      } else {
+        res.send(post);
+      }
     });
   };
 
-  remove = (req: express.Request, res: express.Response) => {
+  remove = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const { id } = req.params;
     this.PostModel.findByIdAndDelete(id).then((successResponse) => {
       if (!successResponse) {
-        res.sendStatus(404);
+        next(new PostNotFoundException(id));
+      } else {
+        res.sendStatus(200);
       }
-      res.sendStatus(200);
     });
   };
 }
