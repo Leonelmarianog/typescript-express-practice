@@ -1,37 +1,65 @@
 import * as express from 'express';
 import Post from './post.interface';
+import PostModel from './posts.model';
+import Controller from '../interfaces/controller.interface';
 
-class PostsController {
+class PostsController implements Controller {
   public path = '/posts';
 
   public router = express.Router();
 
-  private posts: Post[] = [
-    {
-      author: 'Marcin',
-      content: 'Dolor sit amet',
-      title: 'Lorem Ipsum',
-    },
-  ];
+  private PostModel = PostModel;
 
   constructor() {
     this.initializeRoutes();
   }
 
   public initializeRoutes() {
-    this.router.get(this.path, this.getAll);
+    this.router.get(this.path, this.findAll);
+    this.router.get(`${this.path}/:id`, this.findById);
     this.router.post(this.path, this.create);
+    this.router.patch(`${this.path}/:id`, this.update);
+    this.router.delete(`${this.path}/:id`, this.remove);
   }
 
-  getAll(req: express.Request, res: express.Response) {
-    res.send(this.posts);
-  }
+  findAll = (req: express.Request, res: express.Response) => {
+    this.PostModel.find().then((posts) => {
+      res.send(posts);
+    });
+  };
 
-  create(req: express.Request, res: express.Response) {
-    const post: Post = req.body;
-    this.posts.push(post);
-    res.send(post);
-  }
+  findById = (req: express.Request, res: express.Response) => {
+    const { id } = req.params;
+    this.PostModel.findById(id).then((post) => {
+      res.send(post);
+    });
+  };
+
+  create = (req: express.Request, res: express.Response) => {
+    const postData: Post = req.body;
+    const createdPost = new this.PostModel(postData);
+    createdPost.save().then((savedPost) => {
+      res.send(savedPost);
+    });
+  };
+
+  update = (req: express.Request, res: express.Response) => {
+    const { id } = req.params;
+    const postData: Post = req.body;
+    this.PostModel.findByIdAndUpdate(id, postData, { new: true }).then((post) => {
+      res.send(post);
+    });
+  };
+
+  remove = (req: express.Request, res: express.Response) => {
+    const { id } = req.params;
+    this.PostModel.findByIdAndDelete(id).then((successResponse) => {
+      if (!successResponse) {
+        res.sendStatus(404);
+      }
+      res.sendStatus(200);
+    });
+  };
 }
 
 export default PostsController;

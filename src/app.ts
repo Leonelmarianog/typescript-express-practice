@@ -1,16 +1,27 @@
 import * as express from 'express';
 import * as bodyParser from 'body-parser';
+import * as mongoose from 'mongoose';
 
 class App {
   public app: express.Application;
 
-  public PORT: number;
-
-  constructor(controllers, PORT) {
+  constructor(controllers) {
     this.app = express();
-    this.PORT = PORT;
+    this.connectToDatabase();
     this.initializeMiddlewares();
     this.initializeControllers(controllers);
+  }
+
+  // eslint-disable-next-line class-methods-use-this
+  private connectToDatabase() {
+    const { MONGO_DB_URI } = process.env;
+
+    mongoose
+      .connect(MONGO_DB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+      // eslint-disable-next-line no-console
+      .then(() => console.log('Connected to db'))
+      // eslint-disable-next-line no-console
+      .catch((err) => console.log(err));
   }
 
   private initializeMiddlewares() {
@@ -24,9 +35,9 @@ class App {
   }
 
   public listen() {
-    this.app.listen(this.PORT, () => {
+    this.app.listen(process.env.PORT, () => {
       // eslint-disable-next-line no-console
-      console.log(`Listening on port ${this.PORT}...`);
+      console.log(`Listening on port ${process.env.PORT}...`);
     });
   }
 }
