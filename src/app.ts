@@ -18,6 +18,7 @@ class App {
   // eslint-disable-next-line class-methods-use-this
   private connectToDatabase() {
     const { MONGO_DB_URI } = process.env;
+    mongoose.set('useFindAndModify', false);
 
     mongoose
       .connect(MONGO_DB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
