@@ -1,10 +1,11 @@
 import * as express from 'express';
-import Post from './post.interface';
 import PostModel from './posts.model';
 import Controller from '../interfaces/controller.interface';
 import PostNotFoundException from '../exceptions/PostNotFoundException';
 import validationMiddleware from '../middleware/validation.middleware';
+import authMiddleware from '../middleware/auth.middleware';
 import CreatePostDto from './post.dto';
+import RequestWithUser from '../interfaces/requestWithUser.interface';
 
 class PostsController implements Controller {
   public path = '/posts';
@@ -20,9 +21,14 @@ class PostsController implements Controller {
   public initializeRoutes() {
     this.router.get(this.path, this.findAll);
     this.router.get(`${this.path}/:id`, this.findById);
-    this.router.post(this.path, validationMiddleware(CreatePostDto), this.create);
-    this.router.patch(`${this.path}/:id`, validationMiddleware(CreatePostDto, true), this.update);
-    this.router.delete(`${this.path}/:id`, this.remove);
+    this.router.post(this.path, authMiddleware, validationMiddleware(CreatePostDto), this.create);
+    this.router.patch(
+      `${this.path}/:id`,
+      authMiddleware,
+      validationMiddleware(CreatePostDto, true),
+      this.update
+    );
+    this.router.delete(`${this.path}/:id`, authMiddleware, this.remove);
   }
 
   findAll = (req: express.Request, res: express.Response) => {
@@ -42,17 +48,20 @@ class PostsController implements Controller {
     });
   };
 
-  create = (req: express.Request, res: express.Response) => {
-    const postData: Post = req.body;
-    const createdPost = new this.PostModel(postData);
-    createdPost.save().then((savedPost) => {
-      res.send(savedPost);
+  create = async (req: RequestWithUser, res: express.Response) => {
+    const postData: CreatePostDto = req.body;
+    const createdPost = new this.PostModel({
+      ...postData,
+      // eslint-disable-next-line no-underscore-dangle
+      authorId: req.user._id,
     });
+    const savedPost = await createdPost.save();
+    res.send(savedPost);
   };
 
   update = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const { id } = req.params;
-    const postData: Post = req.body;
+    const postData: CreatePostDto = req.body;
     this.PostModel.findByIdAndUpdate(id, postData, { new: true }).then((post) => {
       if (!post) {
         next(new PostNotFoundException(id));
