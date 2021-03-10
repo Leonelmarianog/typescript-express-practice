@@ -32,9 +32,11 @@ class PostsController implements Controller {
   }
 
   findAll = (req: express.Request, res: express.Response) => {
-    this.PostModel.find().then((posts) => {
-      res.send(posts);
-    });
+    this.PostModel.find()
+      .populate('author', '-password')
+      .then((posts) => {
+        res.send(posts);
+      });
   };
 
   findById = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -53,9 +55,10 @@ class PostsController implements Controller {
     const createdPost = new this.PostModel({
       ...postData,
       // eslint-disable-next-line no-underscore-dangle
-      authorId: req.user._id,
+      author: req.user._id,
     });
     const savedPost = await createdPost.save();
+    await savedPost.populate('author', '-password').execPopulate();
     res.send(savedPost);
   };
 
