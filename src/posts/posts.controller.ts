@@ -1,18 +1,19 @@
 import * as express from 'express';
-import PostModel from './posts.model';
+import { getRepository } from 'typeorm';
+import Post from './post.entity';
 import Controller from '../interfaces/controller.interface';
+import RequestWithUser from '../interfaces/requestWithUser.interface';
 import PostNotFoundException from '../exceptions/PostNotFoundException';
 import validationMiddleware from '../middleware/validation.middleware';
 import authMiddleware from '../middleware/auth.middleware';
 import CreatePostDto from './post.dto';
-import RequestWithUser from '../interfaces/requestWithUser.interface';
 
 class PostsController implements Controller {
   public path = '/posts';
 
   public router = express.Router();
 
-  private PostModel = PostModel;
+  private postRepository = getRepository(Post);
 
   constructor() {
     this.initializeRoutes();
@@ -28,61 +29,61 @@ class PostsController implements Controller {
       validationMiddleware(CreatePostDto, true),
       this.update
     );
-    this.router.delete(`${this.path}/:id`, authMiddleware, this.remove);
+    this.router.delete(`${this.path}/:id`, this.remove);
   }
 
-  findAll = (req: express.Request, res: express.Response) => {
-    this.PostModel.find()
-      .populate('author', '-password')
-      .then((posts) => {
-        res.send(posts);
-      });
+  findAll = async (req: express.Request, res: express.Response) => {
+    const posts = await this.postRepository.find({
+      relations: ['author'],
+    });
+    res.send(posts);
   };
 
-  findById = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  findById = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const { id } = req.params;
-    this.PostModel.findById(id).then((post) => {
-      if (!post) {
-        next(new PostNotFoundException(id));
-      } else {
-        res.send(post);
-      }
+    const post = await this.postRepository.findOne(id, {
+      relations: ['author'],
     });
+
+    if (!post) {
+      next(new PostNotFoundException(id));
+    } else {
+      res.send(post);
+    }
   };
 
   create = async (req: RequestWithUser, res: express.Response) => {
     const postData: CreatePostDto = req.body;
-    const createdPost = new this.PostModel({
+    const newPost = this.postRepository.create({
       ...postData,
-      // eslint-disable-next-line no-underscore-dangle
-      author: req.user._id,
+      author: req.user,
     });
-    const savedPost = await createdPost.save();
-    await savedPost.populate('author', '-password').execPopulate();
-    res.send(savedPost);
+    await this.postRepository.save(newPost);
+    res.send(newPost);
   };
 
-  update = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  update = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const { id } = req.params;
     const postData: CreatePostDto = req.body;
-    this.PostModel.findByIdAndUpdate(id, postData, { new: true }).then((post) => {
-      if (!post) {
-        next(new PostNotFoundException(id));
-      } else {
-        res.send(post);
-      }
-    });
+    await this.postRepository.update(id, postData);
+    const updatedPost = await this.postRepository.findOne(id);
+
+    if (!updatedPost) {
+      next(new PostNotFoundException(id));
+    } else {
+      res.send(updatedPost);
+    }
   };
 
-  remove = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  remove = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const { id } = req.params;
-    this.PostModel.findByIdAndDelete(id).then((successResponse) => {
-      if (!successResponse) {
-        next(new PostNotFoundException(id));
-      } else {
-        res.sendStatus(200);
-      }
-    });
+    const deleteResponse = await this.postRepository.delete(id);
+
+    if (!deleteResponse.raw[1]) {
+      next(new PostNotFoundException(id));
+    } else {
+      res.sendStatus(200);
+    }
   };
 }
 

@@ -1,23 +1,23 @@
 import * as bcrypt from 'bcrypt';
 import * as express from 'express';
 import * as jwt from 'jsonwebtoken';
+import { getRepository } from 'typeorm';
 import UserWithThatEmailAlreadyExistsException from '../exceptions/UserWithThatEmailAlreadyExistsException';
 import WrongCredentialsException from '../exceptions/WrongCredentialsException';
 import Controller from '../interfaces/controller.interface';
+import DataStoredInToken from '../interfaces/dataStoredInToken.interface';
+import TokenData from '../interfaces/tokenData.interface';
 import validationMiddleware from '../middleware/validation.middleware';
 import CreateUserDto from '../users/user.dto';
-import UserModel from '../users/user.model';
+import User from '../users/user.entity';
 import LoginDto from './login.dto';
-import TokenData from '../interfaces/tokenData.interface';
-import DataStoredInToken from '../interfaces/dataStoredInToken.interface';
-import User from '../users/user.interface';
 
 class AuthenticationController implements Controller {
   public path = '/auth';
 
   public router = express.Router();
 
-  private UserModel = UserModel;
+  private userRepository = getRepository(User);
 
   constructor() {
     this.initializeRoutes();
@@ -35,17 +35,17 @@ class AuthenticationController implements Controller {
     next: express.NextFunction
   ) => {
     const userData: CreateUserDto = req.body;
-    const userExists = await this.UserModel.findOne({ email: userData.email });
+    const userExists = await this.userRepository.findOne({ email: userData.email });
 
     if (userExists) {
       next(new UserWithThatEmailAlreadyExistsException(userData.email));
     } else {
       const hashedPassword = await bcrypt.hash(userData.password, 10);
-      const user = await this.UserModel.create({
+      const user = await this.userRepository.create({
         ...userData,
         password: hashedPassword,
       });
-
+      await this.userRepository.save(user);
       user.password = undefined;
       const tokenData = this.createToken(user);
 
@@ -64,7 +64,7 @@ class AuthenticationController implements Controller {
     next: express.NextFunction
   ) => {
     const loginData: LoginDto = req.body;
-    const user = await this.UserModel.findOne({ email: loginData.email });
+    const user = await this.userRepository.findOne({ email: loginData.email });
 
     if (!user) {
       next(new WrongCredentialsException());
@@ -89,11 +89,11 @@ class AuthenticationController implements Controller {
 
   // eslint-disable-next-line class-methods-use-this
   private createToken(user: User): TokenData {
-    const expiresIn = new Date().getTime() + 3600000 * 24 * 14;
+    const expiresIn = 10000 * 60;
     const secret = process.env.JWT_SECRET;
     const dataStoredInToken: DataStoredInToken = {
       // eslint-disable-next-line no-underscore-dangle
-      _id: user._id,
+      id: user.id,
     };
 
     return {

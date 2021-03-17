@@ -6,6 +6,9 @@ class CreateAddressDto {
 
   @IsString()
   public city: string;
+
+  @IsString()
+  public country: string;
 }
 
 export default CreateAddressDto;

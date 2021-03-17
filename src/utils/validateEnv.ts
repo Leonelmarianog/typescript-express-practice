@@ -2,7 +2,11 @@ import { cleanEnv, str, port } from 'envalid';
 
 function validateEnv() {
   cleanEnv(process.env, {
-    MONGO_DB_URI: str(),
+    POSTGRES_HOST: str(),
+    POSTGRES_PORT: str(),
+    POSTGRES_USER: str(),
+    POSTGRES_PASSWORD: str(),
+    POSTGRES_DB: str(),
     PORT: port(),
     JWT_SECRET: str(),
   });

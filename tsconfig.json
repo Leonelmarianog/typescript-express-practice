@@ -5,6 +5,7 @@
     "outDir": "./dist",
     "baseUrl": "./src",
     "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "moduleResolution": "node"
   },
   "include": ["src/**/*.ts"],

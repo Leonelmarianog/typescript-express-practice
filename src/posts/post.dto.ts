@@ -1,4 +1,6 @@
-import { IsString } from 'class-validator';
+// eslint-disable-next-line max-classes-per-file
+import { IsString, ValidateNested } from 'class-validator';
+import CreateCategoryDto from '../category/category.dto';
 
 class CreatePostDto {
   @IsString()
@@ -6,6 +8,9 @@ class CreatePostDto {
 
   @IsString()
   public title: string;
+
+  @ValidateNested()
+  public categories: CreateCategoryDto[];
 }
 
 export default CreatePostDto;
